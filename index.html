@@ -148,7 +148,7 @@
       </div>
       <div class="muted">Totul se salvează automat în browserul acestui telefon / calculator. Pentru alt telefon folosește „🔗 Link”.</div>
     </div>
-    <div class="muted" style="padding:0 4px 12px">Prețuri: Pepiniera Sarusi (pepinierasarusi.ro), oct. 2026. Afinele sunt estimate (alt magazin). Plan la scară după planul topografic; porțile și obiectele din curte – aproximativ.</div>
+    <div class="muted" style="padding:0 4px 12px">Prețuri: Pepiniera Sarusi (pepinierasarusi.ro), oct. 2026. Afinul și smochinul sunt estimate (secretgarden.ro / alt magazin). Plan la scară după planul topografic; porțile și obiectele din curte – aproximativ.</div>
   </aside>
 </main>
 
@@ -257,6 +257,8 @@ const CAT = {
   par:      { name: "Păr", kind: "tree", color: "#c9a227", vars: [["Williams", 24], ["Favorita lui Clapp", 24], ["Clapp Roșu", 24], ["Williams Roșu", 24], ["Arabitka", 24], ["Untoasa Bosch", 24], ["Packham's Triumph", 24], ["Abate Fetel", 24], ["Hardenpont", 24], ["Kieffer", 24], ["Hosui (nashi)", 26], ["Nijisseiki (nashi)", 26]] },
   prun:     { name: "Prun", kind: "tree", color: "#6b4fa3", vars: [["Stanley", 24], ["Cacanska Lepotica", 24], ["Cacanska Rana", 24], ["Cacanska Rodna", 24], ["Silvia", 24], ["Renclod Althann", 24], ["D'Agen", 24], ["Bluefre", 24], ["De Bistrița", 24], ["Elena", 24], ["President", 24], ["Anna Spath", 24], ["Renclod Roșu", 26], ["Renclod Negru", 26], ["Tradițional", 26]] },
   gutui:    { name: "Gutui", kind: "tree", color: "#d4b106", vars: [["Bereczki", 26], ["Konstantinapoly", 26]] },
+  nuc:      { name: "Nuc", kind: "tree", dia: 6, color: "#7b5a36", vars: [["Milotai 10 (altoit)", 90], ["Alsószentiváni 117 (altoit)", 90]] },
+  smochin:  { name: "Smochin", kind: "tree", dia: 2.5, color: "#5e3a6e", est: true, vars: [["Brown Turkey (-20°C)", 59], ["Bornholm (-30°C)", 75]] },
   zmeur:    { name: "Zmeur (rând)", short: "Zmeur", kind: "row", color: "#c2185b", vars: [["Autumn Bliss", 12], ["Fertodi Zamatos", 12], ["Malling Exploit", 12]] },
   mur:      { name: "Mur fără spini", short: "Mur", kind: "shrub", dia: 1.5, letter: "M", color: "#3b2357", vars: [["Thornfree", 25], ["Dirksen", 25]] },
   afin:     { name: "Afin (ghiveci)", short: "Afin", kind: "shrub", dia: 0.9, letter: "A", color: "#2f4fa3", est: true, vars: [["Bluecrop", 50], ["Duke", 50], ["Patriot", 50]] },
@@ -285,7 +287,7 @@ let nextId = 1;
 function mk(t, v, u, y, extra = {}) {
   const c = CAT[t];
   const it = { id: nextId++, t, v, u, y, rot: 0 };
-  if (c.kind === "tree") it.dia = 1.8;
+  if (c.kind === "tree") it.dia = c.dia || 1.8;
   if (c.kind === "shrub" || c.kind === "tramp") it.dia = c.dia;
   if (c.kind === "row") it.len = 3.5;
   return Object.assign(it, extra);
@@ -636,7 +638,7 @@ function buildSelPanel() {
     h += `<div class="row"><label>Soi</label><select data-act="var">${vo}</select></div>`;
   }
   if (kind === "tree" || kind === "shrub") {
-    const [mn, mx] = kind === "tree" ? [1, 5] : [0.5, 3];
+    const [mn, mx] = kind === "tree" ? [1, 10] : [0.5, 3];
     h += `<div class="row"><label>Coroană Ø</label><input type="range" min="${mn}" max="${mx}" step="0.1" value="${it.dia}" data-act="dia"><span class="val" id="valDia">${fmt(it.dia)} m</span></div>`;
   }
   if (kind === "row") {
@@ -670,7 +672,7 @@ $("selBody").addEventListener("input", e => {
   if (act === "dia") { it.dia = +e.target.value; $("valDia").textContent = fmt(it.dia) + " m"; }
   if (act === "len") { it.len = +e.target.value; $("valLen").textContent = fmt(it.len) + " m"; }
   if (act === "var") it.v = +e.target.value;
-  if (act === "species") { it.t = e.target.value; it.v = 0; buildSelPanel(); }
+  if (act === "species") { if (CAT[it.t].dia || CAT[e.target.value].dia) it.dia = CAT[e.target.value].dia || 1.8; it.t = e.target.value; it.v = 0; buildSelPanel(); }
   changed();
 });
 $("selBody").addEventListener("click", e => {
@@ -697,7 +699,8 @@ function summary() {
   const list = [...groups.values()];
   const total = list.reduce((s, g) => s + g.price, 0);
   const est = list.filter(g => g.est).reduce((s, g) => s + g.price, 0);
-  return { list, total, est };
+  const estNames = [...new Set(list.filter(g => g.est).map(g => g.name.toLowerCase()))].join(", ");
+  return { list, total, est, estNames };
 }
 function renderList() {
   const nums = treeNumbers();
@@ -714,7 +717,7 @@ function renderList() {
   $("list").innerHTML = rows.join("") || `<tr><td class="muted">Curtea e goală.</td></tr>`;
   const s = summary();
   $("total").textContent = s.total + " lei";
-  $("totalNote").textContent = s.est ? `din care ${s.est} lei estimat (*afine – alt magazin). Pepiniera Sarusi: ${s.total - s.est} lei (comandă minimă 200 lei).` : `Pepiniera Sarusi – comandă minimă 200 lei.`;
+  $("totalNote").textContent = s.est ? `din care ${s.est} lei estimat (*${s.estNames} – alt magazin). Pepiniera Sarusi: ${s.total - s.est} lei (comandă minimă 200 lei).` : `Pepiniera Sarusi – comandă minimă 200 lei.`;
 }
 $("list").addEventListener("click", e => {
   const tr = e.target.closest("[data-sel]"); if (!tr) return;
@@ -918,7 +921,7 @@ async function makeImage() {
   ctx.strokeStyle = "#ccc"; ctx.beginPath(); ctx.moveTo(40, y - 18); ctx.lineTo(W - 40, y - 18); ctx.stroke();
   ctx.font = "bold 30px Helvetica, Arial, sans-serif"; ctx.fillStyle = "#1d6b2a";
   ctx.fillText("TOTAL", 40, y + 18); ctx.textAlign = "right"; ctx.fillText(`${s.total} lei`, W - 40, y + 18); ctx.textAlign = "left";
-  if (s.est) { ctx.font = "22px Helvetica, Arial, sans-serif"; ctx.fillStyle = "#777"; ctx.fillText("* estimat, alt magazin (Pepiniera Sarusi nu are afine)", 40, y + 56); }
+  if (s.est) { ctx.font = "22px Helvetica, Arial, sans-serif"; ctx.fillStyle = "#777"; ctx.fillText(`* estimat, alt magazin (Pepiniera Sarusi nu are ${s.estNames})`, 40, y + 56); }
   return await new Promise(res => canvas.toBlob(res, "image/png"));
 }
 const imageName = () => `plan-curte-${new Date().toISOString().slice(0, 10)}.png`;

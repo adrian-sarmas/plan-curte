@@ -2,7 +2,7 @@
 
 Pagină web (un singur fișier, `index.html`) cu planul curții la scară, în care poți muta cu degetul sau cu mouse-ul pomii, arbuștii, leagănul și trambulina.
 
-- **＋ Adaugă**: pomi (cais, piersic, cireș, măr, păr etc., cu soiurile și prețurile de la Pepiniera Sarusi), zmeur, mur, afin, coacăz, agriș, leagăn, trambulină.
+- **＋ Adaugă**: pomi (cais, piersic, cireș, măr, păr, nuc etc., cu soiurile și prețurile de la Pepiniera Sarusi), smochin (preț estimat, alt magazin), zmeur, mur, afin, coacăz, agriș, leagăn, trambulină.
 - Atinge un element ca să-i schimbi soiul și coroana, să-l rotești, duplici sau ștergi. Sunt afișate distanțele față de gardul vecinului, casă și garaj, plus avertismente (de exemplu sub 2 m de gardul vecinului).
 - **💾 Variante**: salvează mai multe variante în browser (localStorage). Planul curent se salvează automat.
 - **🖼 Imagine**: generează un PNG cu planul și lista de prețuri. Pe telefon „Salvează / trimite” → „Salvează imaginea”.
