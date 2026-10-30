@@ -107,6 +107,7 @@
 <header>
   <h1>🌳 Plan curte – pomi fructiferi</h1>
   <button class="btn primary" id="btnAdd">＋ Adaugă</button>
+  <button class="btn" id="btnShare">📤 Trimite</button>
   <button class="btn" id="btnVariants">💾 Variante</button>
   <button class="btn" id="btnImage">🖼 Imagine</button>
   <button class="btn" id="btnLink">🔗 Link</button>
@@ -264,6 +265,7 @@ const CAT = {
   josta:    { name: "Josta", kind: "shrub", dia: 1.5, letter: "J", color: "#4b2a4f", vars: [["Josta", 35]] },
   leagan:   { name: "Leagăn", kind: "swing", color: "#4b6c95", vars: [["", 0]] },
   tramb:    { name: "Trambulină", kind: "tramp", dia: 3.66, color: "#4b6c95", vars: [["", 0]] },
+  balansoar:{ name: "Balansoar", kind: "bench", color: "#7a7468", vars: [["", 0]] },
 };
 const ROW_SPACING = 0.5, ROW_WIDTH = 0.6;
 const varOf = it => CAT[it.t].vars[Math.min(it.v, CAT[it.t].vars.length - 1)];
@@ -313,8 +315,11 @@ function proposedLayout() {
     mk("afin", 2, ...afin(4.9)),
     mk("leagan", 0, 6.0, 3.1, { rot: 90 }),
     mk("tramb", 0, 7.3, 14.3),
+    defaultBench(),
   ];
 }
+// where the garden swing bench actually stands: against the house wall, between the entrance and the street fence
+const defaultBench = () => mk("balansoar", 0, 13.92, 1.55, { rot: 90 });
 
 // ---------------------------------------------------------------------------
 // Persistence (localStorage + shareable link)
@@ -324,11 +329,14 @@ const store = {
   get(k) { try { const s = localStorage.getItem(k); return s ? JSON.parse(s) : null; } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
 };
-const snapshot = () => ({ items: items.map(({ id, ...rest }) => rest), opts });
+// ver 2: the garden swing bench became a movable item (before it was part of the fixed drawing)
+const STATE_VER = 2;
+const snapshot = () => ({ ver: STATE_VER, items: items.map(({ id, ...rest }) => rest), opts });
 function loadSnapshot(s) {
   if (!s || !Array.isArray(s.items)) return false;
   nextId = 1;
   items = s.items.filter(x => CAT[x.t]).map(x => ({ ...x, id: nextId++ }));
+  if (!s.ver) items.push(defaultBench());
   if (s.opts) opts = { ...opts, ...s.opts };
   selectedId = null;
   return true;
@@ -339,7 +347,7 @@ function autosave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => stor
 const r2 = x => Math.round(x * 100) / 100;
 function encodeLink() {
   const compact = items.map(it => [it.t, it.v, r2(it.u), r2(it.y), Math.round(it.rot || 0), r2(it.len ?? it.dia ?? 0)]);
-  const json = JSON.stringify({ i: compact, o: opts });
+  const json = JSON.stringify({ v: STATE_VER, i: compact, o: opts });
   const b64 = btoa(unescape(encodeURIComponent(json))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   return location.origin + location.pathname + "#p=" + b64;
 }
@@ -350,6 +358,7 @@ function decodeLink(hash) {
     const b64 = m[1].replace(/-/g, "+").replace(/_/g, "/");
     const data = JSON.parse(decodeURIComponent(escape(atob(b64))));
     return {
+      ver: data.v,
       opts: data.o,
       items: data.i.map(([t, v, u, y, rot, s]) => {
         const it = { t, v, u, y, rot };
@@ -451,8 +460,6 @@ function drawBuildings(f) {
   o.push(T((HU0 + HU1) / 2, 4.2, "11,10 × 14,70 m", { size: 0.32 * Math.min(f, 1.5), fill: "#eee", halo: null }));
   o.push(`<rect x="13.75" y="4" width="0.85" height="2" fill="#c9c6bd" stroke="#777" stroke-width="0.03"/>`);
   o.push(T(13.6, 6.45, "intrare", { size: 0.3 * f, bold: true, anchor: "end" }));
-  o.push(`<rect x="13.35" y="0.45" width="1.15" height="2.2" fill="#e6e1d6" stroke="#666" stroke-width="0.05"/>`);
-  o.push(T(13.92, 1.55, "balansoar", { size: 0.26 * Math.min(f, 1.2), fill: "#444", rot: 90, halo: null }));
   o.push(`<polyline points="${pts([[10.55, 0.2], [12.3, 2.9], [13.7, 5.0]])}" fill="none" stroke="#8d7b5f" stroke-width="0.07" stroke-dasharray="0.25 0.22"/>`);
   // garage
   o.push(`<polygon points="${pts(GARAGE)}" fill="#f1f1ee" stroke="#555" stroke-width="0.08"/>`);
@@ -556,6 +563,13 @@ function drawItem(it, f, nums, selected) {
     o.push(`<rect x="-0.95" y="-0.12" width="0.5" height="0.24" fill="#e05a7a"/><rect x="0.45" y="-0.12" width="0.5" height="0.24" fill="#e05a7a"/>`);
     if (selected) o.push(`<rect x="-1.75" y="-2.35" width="3.5" height="4.7" ${selStroke}/>`);
     o.push(`<g${unrot}>` + T(0, -0.95, "leagăn", { size: 0.3 * f, fill: "#2e4d73", bold: true }) + `</g>`);
+  } else if (kind === "bench") {
+    o.push(`<rect x="-1.2" y="${f3(-Math.max(0.6, 0.45 * f))}" width="2.4" height="${f3(Math.max(1.2, 0.9 * f))}" fill="transparent"/>`);
+    o.push(`<rect x="-1.1" y="-0.575" width="2.2" height="1.15" rx="0.08" fill="#e6e1d6" stroke="${a.err.length ? "#c0392b" : "#666"}" stroke-width="${f3(0.05 * f)}"/>`);
+    o.push(`<rect x="-0.95" y="-0.15" width="1.9" height="0.45" rx="0.06" fill="#cfc6b4"/>`);
+    o.push(`<line x1="-1.0" y1="-0.4" x2="1.0" y2="-0.4" stroke="#7a7468" stroke-width="0.07"/>`);
+    if (selected) o.push(`<rect x="-1.25" y="-0.72" width="2.5" height="1.44" ${selStroke}/>`);
+    o.push(`<g${unrot}>` + T(0, 0, "balansoar", { size: 0.26 * f, fill: "#444", bold: true }) + `</g>`);
   } else if (kind === "tramp") {
     const r = it.dia / 2;
     o.push(`<circle r="${f3(r)}" fill="#dfe8f3" stroke="${a.err.length ? "#c0392b" : "#4b6c95"}" stroke-width="${f3(0.05 * f)}"/>`);
@@ -569,7 +583,7 @@ function drawItem(it, f, nums, selected) {
 function drawItems(f, selId) {
   const nums = treeNumbers();
   // big objects first so trees stay on top
-  const order = { tramp: 0, swing: 1, row: 2, shrub: 3, tree: 4 };
+  const order = { tramp: 0, swing: 1, bench: 1, row: 2, shrub: 3, tree: 4 };
   const sorted = [...items].sort((a, b) => order[CAT[a.t].kind] - order[CAT[b.t].kind]);
   return sorted.map(it => drawItem(it, f, nums, it.id === selId)).join("");
 }
@@ -628,7 +642,7 @@ function buildSelPanel() {
   if (kind === "row") {
     h += `<div class="row"><label>Lungime</label><input type="range" min="0.5" max="12" step="0.5" value="${it.len}" data-act="len"><span class="val" id="valLen">${fmt(it.len)} m</span></div>`;
   }
-  if (kind === "row" || kind === "swing" || kind === "shrub") {
+  if (kind === "row" || kind === "swing" || kind === "shrub" || kind === "bench") {
     h += `<div class="row"><label>Rotire</label><button class="btn small" data-act="rot" data-val="-15">⟲ 15°</button><button class="btn small" data-act="rot" data-val="15">⟳ 15°</button><button class="btn small" data-act="rot" data-val="90">90°</button></div>`;
   }
   h += `<div class="row"><button class="btn small" data-act="dup">⧉ Duplică</button><button class="btn small danger" data-act="del">🗑 Șterge</button></div>`;
@@ -674,7 +688,7 @@ $("selBody").addEventListener("click", e => {
 function summary() {
   const groups = new Map();
   for (const it of items) {
-    const c = CAT[it.t]; if (!varOf(it)[1] && (c.kind === "swing" || c.kind === "tramp")) continue;
+    const c = CAT[it.t]; if (!varOf(it)[1]) continue;
     const key = it.t + "|" + it.v;
     const g = groups.get(key) || { name: c.short || c.name, variety: varOf(it)[0], qty: 0, price: 0, unit: varOf(it)[1], est: !!c.est, color: c.color };
     g.qty += qtyOf(it); g.price += priceOf(it);
@@ -689,7 +703,7 @@ function renderList() {
   const nums = treeNumbers();
   const rows = items.map(it => {
     const c = CAT[it.t];
-    const sym = c.kind === "tree" ? nums[it.id] : c.kind === "row" ? "Z" : c.kind === "shrub" ? c.letter : c.kind === "swing" ? "L" : "T";
+    const sym = c.kind === "tree" ? nums[it.id] : c.kind === "row" ? "Z" : c.kind === "shrub" ? c.letter : c.kind === "swing" ? "L" : c.kind === "bench" ? "B" : "T";
     const v = varOf(it)[0];
     const pr = priceOf(it);
     const a = analyze(it); const warn = (a.err.length || a.warn.length) ? ' <span style="color:#c0392b">⚠</span>' : "";
@@ -707,7 +721,7 @@ $("list").addEventListener("click", e => {
   selectedId = +tr.dataset.sel; buildSelPanel(); renderList(); render();
 });
 
-function changed() { renderList(); render(); autosave(); }
+function changed() { renderList(); render(); autosave(); prepareShareImage(); }
 
 // ---------------------------------------------------------------------------
 // Pointer interaction: drag items, pan, pinch / wheel zoom
@@ -802,7 +816,7 @@ function buildCatalog() {
   for (const [title, kind] of groups) {
     const keys = Object.keys(CAT).filter(k => {
       const kk = CAT[k].kind;
-      return kind === "tree" ? kk === "tree" : kind === null ? (kk === "shrub" || kk === "row") : (kk === "swing" || kk === "tramp");
+      return kind === "tree" ? kk === "tree" : kind === null ? (kk === "shrub" || kk === "row") : (kk === "swing" || kk === "tramp" || kk === "bench");
     });
     h += `<div class="cat-group">${title}</div><div class="grid">`;
     for (const k of keys) {
@@ -907,23 +921,71 @@ async function makeImage() {
   if (s.est) { ctx.font = "22px Helvetica, Arial, sans-serif"; ctx.fillStyle = "#777"; ctx.fillText("* estimat, alt magazin (Pepiniera Sarusi nu are afine)", 40, y + 56); }
   return await new Promise(res => canvas.toBlob(res, "image/png"));
 }
-let imgBlob = null, imgUrl = null;
+const imageName = () => `plan-curte-${new Date().toISOString().slice(0, 10)}.png`;
+const canShareFile = file => !!(navigator.canShare && navigator.canShare({ files: [file] }));
+async function shareFile(file) {
+  try { await navigator.share({ files: [file], title: "Plan curte" }); return true; }
+  catch (err) {
+    if (err && err.name === "AbortError") return true;          // user closed the share sheet
+    return false;
+  }
+}
+
+// The share sheet only opens right after a tap, so the PNG is prepared in the
+// background after each change; tapping "Trimite" can then share it immediately.
+let readyFile = null, prepTimer = null, prepSeq = 0;
+function prepareShareImage() {
+  readyFile = null;
+  clearTimeout(prepTimer);
+  const seq = ++prepSeq;
+  prepTimer = setTimeout(async () => {
+    try {
+      const blob = await makeImage();
+      if (seq === prepSeq) readyFile = new File([blob], imageName(), { type: "image/png" });
+    } catch (err) { console.error(err); }
+  }, 1200);
+}
+async function currentImageFile() {
+  if (readyFile) return readyFile;
+  readyFile = new File([await makeImage()], imageName(), { type: "image/png" });
+  return readyFile;
+}
+
+let imgUrl = null;
+function openImageDialog(file) {
+  if (imgUrl) URL.revokeObjectURL(imgUrl);
+  imgUrl = URL.createObjectURL(file);
+  $("imgPreview").src = imgUrl;
+  $("imgDownload").href = imgUrl; $("imgDownload").download = file.name;
+  $("imgShare").style.display = canShareFile(file) ? "" : "none";
+  $("imgShare").onclick = async () => { if (!(await shareFile(file))) toast("Nu s-a putut trimite – folosește „Descarcă”"); };
+  $("dlgImage").showModal();
+}
 $("btnImage").onclick = async () => {
   try {
-    toast("Se generează imaginea…");
-    imgBlob = await makeImage();
-    if (imgUrl) URL.revokeObjectURL(imgUrl);
-    imgUrl = URL.createObjectURL(imgBlob);
-    const name = `plan-curte-${new Date().toISOString().slice(0, 10)}.png`;
-    $("imgPreview").src = imgUrl;
-    $("imgDownload").href = imgUrl; $("imgDownload").download = name;
-    const file = new File([imgBlob], name, { type: "image/png" });
-    $("imgShare").style.display = (navigator.canShare && navigator.canShare({ files: [file] })) ? "" : "none";
-    $("imgShare").onclick = async () => {
-      try { await navigator.share({ files: [file], title: "Plan curte" }); }
-      catch (err) { if (!err || err.name !== "AbortError") toast("Nu s-a putut trimite – folosește „Descarcă”"); }
-    };
-    $("dlgImage").showModal();
+    if (!readyFile) toast("Se generează imaginea…");
+    openImageDialog(await currentImageFile());
+  } catch (err) {
+    console.error(err);
+    toast("Nu s-a putut genera imaginea");
+  }
+};
+$("btnShare").onclick = async () => {
+  try {
+    const wasReady = !!readyFile;
+    if (!wasReady) toast("Se pregătește imaginea…");
+    const file = await currentImageFile();
+    if (!canShareFile(file)) {
+      // desktop browsers without file sharing: save the PNG instead
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(file); a.download = file.name; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast("Imaginea a fost descărcată");
+      return;
+    }
+    // if generating took too long the browser may refuse the share sheet; then show
+    // the image dialog, where one more tap opens it
+    if (!(await shareFile(file))) openImageDialog(file);
   } catch (err) {
     console.error(err);
     toast("Nu s-a putut genera imaginea");
@@ -961,7 +1023,7 @@ function toast(msg) {
     history.replaceState(null, "", location.pathname + location.search);
   }
   syncOpts(); buildCatalog(); buildSelPanel(); renderList(); renderNow();
-  autosave();
+  autosave(); prepareShareImage();
 })();
 </script>
 </body>
